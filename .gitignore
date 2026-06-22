@@ -1,0 +1,7 @@
+obj/
+bin/
+lib/
+.idea/
+.vs/
+.vscode/
+*.cmd
