@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using DiskCardGame;
 using HarmonyLib;
+using InscryptionAPI.Ascension;
 using InscryptionAPI.Card;
 using InscryptionAPI.Helpers;
 using InscryptionAPI.Nodes;
@@ -97,6 +98,7 @@ namespace LudosCards
             .AddMetaCategories(CardMetaCategory.Rare)
             .SetPortrait("ludoscards_mother_bunny.png")
             .SetEmissivePortrait("ludoscards_mother_bunny_emission.png")
+            .SetPixelPortrait("ludoscards_mother_bunny_pixel.png")
             .SetDefaultPart1Card();
 
             CardManager.Add(PluginPrefix, bunnyMother);
@@ -129,8 +131,9 @@ namespace LudosCards
 
             CardManager.Add(PluginPrefix, feralBunny);
 
-            Logger.LogInfo($"Added ludosbunny cards!");
+            StarterDeckManager.New(PluginGuid, "Bunny Mother", "ludoscards_mother_deck.png", ["ludoscards_mother_bunny", "ludoscards_mother_bunny", "Goat", "Opossum"]);
 
+            Logger.LogInfo($"Added ludosbunny cards!");
         }
 
         public class BunnyMotherAbility : AbilityBehaviour

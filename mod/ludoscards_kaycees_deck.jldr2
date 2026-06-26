@@ -1,9 +1,0 @@
-{
-    "decks": [
-        {
-            "name": "Bunny Mother",
-            "iconTexture": "mother_deck.png",
-            "cards": [ "ludoscards_mother_bunny", "ludoscards_mother_bunny", "Goat", "Opossum" ]
-        }
-    ]
-}
