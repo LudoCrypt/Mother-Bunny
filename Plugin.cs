@@ -89,7 +89,7 @@ namespace LudosCards
                 "Bunny Mother",
                 1,
                 2,
-                description: "a virile beast. it only has a mind for reproduction."
+                description: "a virile beast. in youth, quite vicious without a mother"
             )
             .SetCost(bloodCost: 1)
             .AddAbilities(BunnyMotherAbility.ability)
@@ -158,7 +158,7 @@ namespace LudosCards
 
             public override IEnumerator OnOtherCardDie(PlayableCard card, CardSlot deathSlot, bool fromCombat, PlayableCard killer)
             {
-                if (card.HasAnyOfAbilities(new Ability[] { BunnyMotherAbility.ability }))
+                if (card.HasAbility(BunnyMotherAbility.ability))
                 {
                     if (!WeakCard.GetData(card).alreadyDrewFromDeath)
                     {
@@ -178,7 +178,7 @@ namespace LudosCards
 
             public override IEnumerator OnOtherCardDealtDamage(PlayableCard attacker, int amount, PlayableCard target)
             {
-                if (target.HasAnyOfAbilities(new Ability[] { BunnyMotherAbility.ability }))
+                if (target.HasAbility(BunnyMotherAbility.ability))
                 {
                     if (!WeakCard.GetData(target).alreadyDrewFromDeath)
                     {
@@ -224,69 +224,70 @@ namespace LudosCards
             public static SpecialTriggeredAbility specialAbility;
             public readonly static SpecialTriggeredAbility FeralBunny = SpecialTriggeredAbilityManager.Add(PluginGuid, "Feral Bunny", typeof(FeralBunnyAbility)).Id;
 
-            public override bool RespondsToResolveOnBoard()
-            {
-                return true;
-            }
-
-            public override IEnumerator OnResolveOnBoard()
-            {
-                return triggerFeralization();
-            }
-
-            public override IEnumerator OnOtherCardDie(PlayableCard card, CardSlot deathSlot, bool fromCombat, PlayableCard killer)
-            {
-                return triggerFeralization();
-            }
-
-            public override bool RespondsToOtherCardDie(PlayableCard card, CardSlot deathSlot, bool fromCombat, PlayableCard killer)
+            public override bool RespondsToOtherCardResolve(PlayableCard otherCard)
             {
                 return true;
             }
 
             public override IEnumerator OnOtherCardResolve(PlayableCard otherCard)
             {
-                return triggerFeralization();
+                bool isMotherInPlay = false;
+
+                foreach (PlayableCard card in Singleton<BoardManager>.Instance.AllSlots.Select(x => x.Card).OfType<PlayableCard>().ToList())
+                {
+                    if (!card.Dead && card.HasAbility(BunnyMotherAbility.ability))
+                    {
+                        isMotherInPlay = true;
+                    }
+                }
+
+                if (!isMotherInPlay)
+                {
+                    var cardInfo = CardLoader.GetCardByName("ludoscards_feral_bunny");
+                    yield return base.PlayableCard.TransformIntoCard(cardInfo);
+                }
+
+                yield return base.OnOtherCardResolve(otherCard);
             }
 
-            public override bool RespondsToOtherCardResolve(PlayableCard otherCard)
+            public override bool RespondsToOtherCardDealtDamage(PlayableCard attacker, int amount, PlayableCard target)
             {
                 return true;
             }
 
-            private IEnumerator triggerFeralization()
+            public override IEnumerator OnOtherCardDealtDamage(PlayableCard attacker, int amount, PlayableCard target)
             {
                 bool isMotherInPlay = false;
-                bool anyBunniesInPlay = false;
 
                 foreach (PlayableCard card in Singleton<BoardManager>.Instance.AllSlots.Select(x => x.Card).OfType<PlayableCard>().ToList())
                 {
-                    if (card.Health > 0 && card.HasAnyOfAbilities(new Ability[] { BunnyMotherAbility.ability }))
+                    if (!card.Dead && card.HasAbility(BunnyMotherAbility.ability))
                     {
                         isMotherInPlay = true;
                     }
-                    if (card.Health > 0 && card.HasAnyOfSpecialAbilities(new SpecialTriggeredAbility[] { FeralBunny }))
-                    {
-                        anyBunniesInPlay = true;
-                    }
                 }
 
-                if (!isMotherInPlay && anyBunniesInPlay)
+                if (!isMotherInPlay)
                 {
+                    var cardInfo = CardLoader.GetCardByName("ludoscards_feral_bunny");
+                    yield return base.PlayableCard.TransformIntoCard(cardInfo);
 
-                    foreach (PlayableCard card in Singleton<BoardManager>.Instance.AllSlots.Select(x => x.Card).OfType<PlayableCard>().ToList())
+                    // for some reason, when a card attacks a steel trap, this method only fires when you attack the trap, not when the trap dies.
+                    // so that means the 'attacker' is one of our cards, and the target is the steel trap
+                    // but i suppose, if we attack a card, and that card ends up dead? that means we know what happened?
+                    if (attacker.HasAbility(BunnyMotherAbility.ability))
                     {
-                        if (card.Health > 0 && card.HasAnyOfSpecialAbilities(new SpecialTriggeredAbility[] { FeralBunny }))
+                        if (attacker.Dead)
                         {
-                            var cardInfo = CardLoader.GetCardByName("ludoscards_feral_bunny");
-                            yield return card.TransformIntoCard(cardInfo);
+                            yield return Singleton<TurnManager>.Instance.CombatPhaseManager.SlotAttackSlot(base.PlayableCard.Slot, target.Slot, 0.35f);
+                            // for some reason, manually calling an attack doesn't trigger the brittle sigil, so this is triggering it manually.
+                            yield return base.PlayableCard.TriggerHandler.OnTrigger(Trigger.AttackEnded);
                         }
                     }
-
-                    yield return new WaitForSeconds(0.35f);
                 }
-            }
 
+                yield return base.OnOtherCardDealtDamage(attacker, amount, target);
+            }
         }
 
         public class BrittleBunnyAbility : SpecialCardBehaviour
@@ -294,68 +295,22 @@ namespace LudosCards
             public static SpecialTriggeredAbility specialAbility;
             public readonly static SpecialTriggeredAbility BrittleBunny = SpecialTriggeredAbilityManager.Add(PluginGuid, "Brittle Bunny", typeof(BrittleBunnyAbility)).Id;
 
-            public override bool RespondsToResolveOnBoard()
-            {
-                return true;
-            }
-
-            public override IEnumerator OnResolveOnBoard()
-            {
-                return triggerNormalization();
-            }
-
-            public override IEnumerator OnOtherCardDie(PlayableCard card, CardSlot deathSlot, bool fromCombat, PlayableCard killer)
-            {
-                return triggerNormalization();
-            }
-
-            public override bool RespondsToOtherCardDie(PlayableCard card, CardSlot deathSlot, bool fromCombat, PlayableCard killer)
-            {
-                return true;
-            }
-
-            public override IEnumerator OnOtherCardResolve(PlayableCard otherCard)
-            {
-                return triggerNormalization();
-            }
 
             public override bool RespondsToOtherCardResolve(PlayableCard otherCard)
             {
                 return true;
             }
 
-            private IEnumerator triggerNormalization()
+            public override IEnumerator OnOtherCardResolve(PlayableCard otherCard)
             {
-                bool isMotherInPlay = false;
-                bool anyBunniesInPlay = false;
-
-                foreach (PlayableCard card in Singleton<BoardManager>.Instance.AllSlots.Select(x => x.Card).OfType<PlayableCard>().ToList())
+                if (otherCard.HasAbility(BunnyMotherAbility.ability))
                 {
-                    if (card.Health > 0 && card.HasAnyOfAbilities(new Ability[] { BunnyMotherAbility.ability }))
-                    {
-                        isMotherInPlay = true;
-                    }
-                    if (card.Health > 0 && card.HasAnyOfSpecialAbilities(new SpecialTriggeredAbility[] { BrittleBunny }))
-                    {
-                        anyBunniesInPlay = true;
-                    }
+                    var cardInfo = CardLoader.GetCardByName("ludoscards_bunny");
+                    yield return base.PlayableCard.TransformIntoCard(cardInfo);
                 }
-
-                if (isMotherInPlay && anyBunniesInPlay)
-                {
-
-                    foreach (PlayableCard card in Singleton<BoardManager>.Instance.AllSlots.Select(x => x.Card).OfType<PlayableCard>().ToList())
-                    {
-                        if (card.Health > 0 && card.HasAnyOfSpecialAbilities(new SpecialTriggeredAbility[] { BrittleBunny }))
-                        {
-                            var cardInfo = CardLoader.GetCardByName("ludoscards_bunny");
-                            yield return card.TransformIntoCard(cardInfo);
-                        }
-                    }
-
-                    yield return new WaitForSeconds(0.35f);
-                }
+                yield return base.OnOtherCardResolve(otherCard);
             }
+
         }
 
     }
